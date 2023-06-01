@@ -1,55 +1,51 @@
 //Fetch the svg element and set its height and width. 
 let width = window.innerWidth;
-let height = window.innerHeight/1.25;
+let height = window.innerHeight*0.66;
 
 const svg = document.getElementById("water");
 svg.setAttribute("width", width);
 svg.setAttribute("height", height);
-//svg.setAttribute("background-color", "url(#Gradient)");
 console.log(svg);
 
-function drawWater() {
+window.addEventListener("resize", resizeSvg);
 
-  let waterColour = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+function resizeSvg(){
+    //to gather information about how they appear on the page.
+    let bbox = svg.getBoundingClientRect();
+    //console.log(bbox.height);
 
-  waterColour.setAttribute("x", 0);
-  waterColour.setAttribute("y", 0);
-  waterColour.setAttribute("width", width);
-  waterColour.setAttribute("height", height);
-  waterColour.setAttribute("fill", "url(#Gradient)");
-
-  svg.appendChild(waterColour);
+    svg.setAttribute("viewBox", `0 0 ${bbox.width} ${bbox.height}`);
 }
-drawWater();
 
-//randomNum(lower, upper)
+class Fishes { 
+  
+  constructor(){
 
-
-function drawFish(x,y) {
+  }
+  
+  static drawFish() {
 
   let newFish = document.createElementNS("http://www.w3.org/2000/svg", "path");
 
-  newFish.setAttribute("d", "M 180 180 A 5 5 90 0 0 180 225 C 203 225 228 188 238 190 C 240 198 240 208 238 215 C 228 218 203 180 180 180");
+  newFish.setAttribute("d", "M 90 90 A 3 3 90 0 0 90 113 C 102 113 114 94 119 95 C 120 99 120 104 119 108 C 114 109 102 90 90 90");
   newFish.setAttribute("fill", "blue");
   
   // Generate random coordinates for positioning
-  let randomX = Math.round(Math.random() * width);
-  let randomY = Math.round(Math.random() * height);
+  let randomX = Math.round(Math.random() * width*0.95);
+  let randomY = Math.round(Math.random() * height*0.7);
     
   // Set the transform attribute to position the path
   newFish.setAttribute("transform", "translate(" + randomX + "," + randomY + ")"); 
 
-  svg.appendChild(newFish);
+  svg.appendChild(newFish); 
+  } 
 }
 
 
 //get the input box from the HTML
 const numFishes = document.getElementById("num-fishes-input");
 
-//We get our generateFishesButton from the HTML
-const generateFishesButton = document.getElementById("generate-fishes-button");
-
-generateFishesButton.addEventListener("click", function(e) {
+numFishes.addEventListener("input", function(e) {
 
   //First clear all the exisitng fishes.
   svg.replaceChildren();
@@ -60,17 +56,17 @@ generateFishesButton.addEventListener("click", function(e) {
 
   //Generate random positions for the number of fishes
   for(let i = 1; i<= numNewFishes; i++) {
-    drawFish();
+    
+    Fishes.drawFish();
   }
 
 } );
 
 
-//we get removeFishesButton from the html page
-const removeFishesButton = document.getElementById("remove-fishes-button");
+// //we get removeFishesButton from the html page
+// const removeFishesButton = document.getElementById("remove-fishes-button");
 
-removeFishesButton.addEventListener("click", function(e) {
-    //On click we clear all the exisitng squares
-    svg.replaceChildren();
-} );
-
+// removeFishesButton.addEventListener("click", function(e) {
+//     //On click we clear all the exisitng squares
+//     svg.replaceChildren();
+// } );
