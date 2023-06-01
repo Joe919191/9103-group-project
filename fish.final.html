@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="stylesheet" href="fish.final.css" />
+    <!-- <script src="p5.js"></script> -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.1.9/p5.js"></script> 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.1.9/addons/p5.sound.min.js"></script>
+    <title>9103 Group Project-fish</title>
+
+</head>
+
+<body>
+    <div class="container">
+        
+        <div class="grid-title">
+            <h1>9103 Group Emergence Design: Fish Flocking Simulation</h1>
+        </div>
+        <div class="grid-intro-1">
+            <h2 class="title">Design Brief</h2>
+            <p>
+                This project focuses on simulating fish swimming in water. We employ several rules <br>
+                to simulate the movement behaviors of the fish based on their relative distances. <br>
+                As a result of the phenomenon known as the "herding effect," when fish form cohesive <br>
+                groups, their colors become the same.
+            </p>
+        </div>
+        <div class="grid-intro-2">
+            <h2 class="title">Rules applied</h2>
+            <p>
+                 1.Separation: steer to avoid crowding local flockmates;<br>
+                 2.Alignment: steer towards the average heading of local flockmates;<br>
+                 3.Cohesion: steer to move towards the average position (center of mass) of local flockmates;<br>
+                 More complex rules can be added, such as obstacle avoidance and Conformity Effect.
+            </p>
+        </div>
+
+
+        <div class="grid-svg" id="sketch-container">
+        </div>
+        
+        <div class="grid-control">
+            
+            <label for="num-fishes-input">Fish Quantity:</label>
+            <input type="range" id="num-fishes-input" name="num-fishes-input" min="0" max="250"/>
+            <span id="range-value">0</span>
+            <br/>
+            <p2>*Drag to generate fishes</p2>
+    
+        </div>
+
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js" integrity="sha512-jduERlz7En1IUZR54bqzpNI64AbffZWR//KJgF71SJ8D8/liKFZ+s1RxmUmB+bhCnIfzebdZsULwOrbVB5f3nQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <audio id="bg-music" src="Part of Your World - The Little Mermaid.mp3" loop></audio>
+    <audio id="obstacle-music" src="Ring.mp3"></audio>
+    <script src="fish.final.js"></script>
+    <script src="musicmachine.final.js"></script>
+
+
+
+</body>
+
+</html>
