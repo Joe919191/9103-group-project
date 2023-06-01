@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fish Simulation</title>
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      padding: 0;
+    }
+
+    #water {
+      border: 1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+  <div id="sketch-container"></div>
+  <div id="fish-count-container">
+    <label for="num-fishes-input">Enter number of fishes:</label>
+    <br />
+    <input type="number" id="num-fishes-input" name="num-fishes-input" value="150" />
+  </div>
+  <div id="generate-fishes-container">
+    <button id="generate-fishes-button" onclick="generateFishes()">Generate Fishes</button>
+  </div>
+  <br /><br />
+  <div id="remove-fishes-container">
+    <button id="remove-fishes-button">Remove all fishes</button>
+  </div>  
+  <svg id="water"></svg>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+  <script src="fish.boids.iteration.js" defer></script>
+</body>
+</html>
