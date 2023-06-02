@@ -1,6 +1,6 @@
-const FISH_SIZE = 20;
-const MAX_SPEED = 5;
-const MAX_FORCE = 0.05;
+const NEIGHBOR_DIST = 15;
+const MAX_SPEED = 1;
+const MAX_FORCE = 0.01;
 let fishSimulation;
 
 let waterWidth = 0;
@@ -21,7 +21,7 @@ function setup() {
 }
 
 function draw() {
-  clear(); // 清除画布
+  clear(); // clear canvas
   background('rgba(0,0,0,0)');
   fishSimulation.run();
 }
@@ -30,13 +30,14 @@ function windowResized() {
   waterWidth = windowWidth;
   waterHeight = windowHeight*0.5;
   resizeCanvas(waterWidth, waterHeight);
-
+  fishSimulation.removeObstacles();
 }
 
 class FishSimulation {
   constructor() {
     this.fishes = [];
     this.obstacles = [];
+    this.obstacleNumber = 0;
   }
 
   createFish(numFishes) {
@@ -48,10 +49,10 @@ class FishSimulation {
         velocity = createVector(random(-1, 1), random(-1, 1));
         fish = new Fish(position, velocity);
       
-        // 检查鱼与现有鱼的位置是否重叠
+        // check if new fish is overlapped with existing fish
         isOverlapping = this.fishes.some(existingFish => {
           const distance = p5.Vector.dist(existingFish.position, fish.position);
-          return distance < FISH_SIZE * 2; // 调整这个值以控制鱼的最小间距
+          return distance < NEIGHBOR_DIST*3; // adjust this value to control minimun distance between fishes
         });
       }   
       this.fishes.push(fish);
@@ -63,36 +64,25 @@ class FishSimulation {
   }
   
   createObstacle(x, y) {
-    const obstacleSize = random(40, 80); // 随机生成障碍物的大小
-    const obstacle = new Obstacle(createVector(x, y), obstacleSize); // 将大小作为参数传递给 Obstacle 构造函数
+    const obstacleSize = random(40, 80);
+    const obstacle = new Obstacle(createVector(x, y), obstacleSize);
     this.obstacles.push(obstacle);
+  
+    this.obstacleNumber = this.obstacles.length;
+    const obstacleNumberSpan = document.getElementById('obstacle-number');
+    obstacleNumberSpan.textContent = this.obstacleNumber;
   }
 
   removeObstacles() {
     this.obstacles = [];
+    this.obstacleNumber = 0;
+    const obstacleNumberSpan = document.getElementById('obstacle-number');
+    obstacleNumberSpan.textContent = this.obstacleNumber;
   }
 
   run() {
-    for (let i = 0; i < this.fishes.length; i++) {
-      const fish = this.fishes[i];
-      fish.update();
-      fish.edges();
-  
-      for (let j = i + 1; j < this.fishes.length; j++) {
-        const otherFish = this.fishes[j];
-        const distance = p5.Vector.dist(fish.position, otherFish.position);
-  
-        if (distance < FISH_SIZE) {
-          const direction = p5.Vector.sub(fish.position, otherFish.position).normalize();
-          const separationForce = direction.mult(0.5);
-          fish.applyForce(separationForce);
-          otherFish.applyForce(separationForce.mult(-1));
-        }
-      }
-    }
-  
-    this.fishes.forEach(fish => fish.display());
     this.obstacles.forEach(obstacle => obstacle.display());
+    this.fishes.forEach(fish => fish.run(this.fishes, this.obstacles));
   }
 
 }
@@ -102,17 +92,22 @@ function setupEventListeners() {
   const waterCanvas = document.getElementById('sketch-water');
   const rangeInput = document.getElementById('num-fishes-input');
   const rangeValue = document.getElementById('range-value');
+  const removeObstaclesBtn = document.getElementById('remove-obstcle-button');
 
   rangeInput.value = rangeInput.min; 
   rangeValue.textContent = rangeInput.min;
 
   rangeInput.addEventListener('mouseup', function() {
-      rangeValue.textContent = rangeInput.value;
-      const numFishes = Number(rangeInput.value)
-      fishSimulation.removeFishes(); // 清除现有的鱼
-      if (numFishes> 0) {
-        fishSimulation.createFish(numFishes); // 生成新的鱼
-      }
+    rangeValue.textContent = rangeInput.value;
+    const numFishes = Number(rangeInput.value)
+    fishSimulation.removeFishes(); // clear all existing fish
+    if (numFishes> 0) {
+      fishSimulation.createFish(numFishes); // generate new fishes
+    }
+  });
+
+  removeObstaclesBtn.addEventListener('click', function() {
+    fishSimulation.removeObstacles(); // add event listener to remove obstacles
   });
 
   rangeInput.addEventListener('input', function() {
@@ -135,42 +130,63 @@ class Fish {
     this.maxSpeed = MAX_SPEED;
     this.maxForce = MAX_FORCE;
     this.color = color(random(255), random(255), random(255));
-    this.isGrouped = true; // 初始化为处于群聚状态
-    this.groupColor = color(255, 192, 203); // 浅粉色
-    this.randomColor = color(random(255), random(255), random(255)); // 随机颜色
-    this.colorChangeFactor = 0.3; // 颜色变化的插值系数 
+    this.isGrouped = true; // initialised state as grouped 
+    this.groupColor = color(255, 192, 203); // light pink
+    this.randomColor = color(random(255), random(255), random(255)); // random colour
   }
 
-  update() {
-    this.flock(fishSimulation.fishes);
-    this.avoidObstacles(fishSimulation.obstacles);
-  
-    this.position.add(this.velocity);
-    this.velocity.add(this.acceleration);
-    this.velocity.limit(this.maxSpeed);
-    this.acceleration.mult(0);
-  
-    const buffer = FISH_SIZE * 2; // Buffer distance from the edge
-    if (
-      this.position.x < buffer ||
-      this.position.x > waterWidth - buffer ||
-      this.position.y < buffer ||
-      this.position.y > waterHeight - buffer
-    ) {
-      // Reflect the fish's velocity
-      const angle = this.velocity.heading();
-      const reflection = createVector(cos(angle + PI), sin(angle + PI));
-      this.velocity.reflect(reflection);
-  
-      // Adjust fish position to prevent sticking to the boundary
-      this.position.x = constrain(this.position.x, buffer, waterWidth - buffer);
-      this.position.y = constrain(this.position.y, buffer, waterHeight - buffer);
-    }
+  run(fishes, obstacles){
+    this.flock(fishes);
+    this.avoid(obstacles);
+    this.update();
+    this.edges();
+    this.display();
   }
+
+  applyForce(force) {
+    this.acceleration.add(force);
+  }
+
+  flock(fishes) {
+    const separationDistance = NEIGHBOR_DIST * 0.01;
+    const cohesionDistance = NEIGHBOR_DIST * 5;
+    const center = createVector();
+    let isGrouped = false;
   
-  avoidObstacles(obstacles) {
+    fishes.forEach(other => {
+      center.add(other.position);
+      const distance = p5.Vector.dist(this.position, other.position);
+      if (distance < cohesionDistance && distance > separationDistance) {
+        isGrouped = true;
+      }
+    });  
+    center.div(fishes.length);
+    if (isGrouped) {
+      const distance = p5.Vector.dist(this.position, center);
+      if (!this.isGrouped && distance < cohesionDistance) {
+        this.isGrouped = true;
+      }
+    } else {
+      this.isGrouped = false;
+    }
+  
+    const separationForce = this.separate(fishes);
+    const alignmentForce = this.align(fishes);
+    const cohesionForce = this.cohesion(fishes);
+    
+    separationForce.mult(1.5);
+    alignmentForce.mult(1.0);
+    cohesionForce.mult(1.0);
+    
+    this.applyForce(separationForce);
+    this.applyForce(alignmentForce);
+    this.applyForce(cohesionForce);
+
+  }
+
+  avoid(obstacles) {
     obstacles.forEach(obstacle => {
-      const desiredSeparation = obstacle.size*2 + FISH_SIZE;
+      const desiredSeparation = obstacle.size*3 + NEIGHBOR_DIST;
       const distance = p5.Vector.dist(this.position, obstacle.position);
   
       if (distance < desiredSeparation) {
@@ -183,132 +199,120 @@ class Fish {
       }
     });
   }
- 
 
-  applyForce(force) {
-    this.acceleration.add(force);
-  }
-
-  flock(fishes) {
-    const separationDistance = FISH_SIZE * 2;
-    const cohesionDistance = FISH_SIZE * 5;
-    const center = createVector();
-    let isGrouped = false;
-  
-    fishes.forEach(other => {
-      center.add(other.position);
-      const distance = p5.Vector.dist(this.position, other.position);
-    
-      if (distance < cohesionDistance && distance > separationDistance) {
-        isGrouped = true;
-      }
-    });
-  
-    center.div(fishes.length);
-  
-    if (isGrouped) {
-      const distance = p5.Vector.dist(this.position, center);
-      if (!this.isGrouped && distance < cohesionDistance) {
-        this.isGrouped = true;
-      }
-    } else {
-      this.isGrouped = false;
+  update() { 
+    this.position.add(this.velocity);
+    this.velocity.add(this.acceleration);
+    this.velocity.limit(this.maxSpeed);
+    this.acceleration.mult(0);
+    // Buffer distance from the edge
+    const buffer = NEIGHBOR_DIST * 2; 
+    if (
+      this.position.x < buffer ||
+      this.position.x > waterWidth - buffer ||
+      this.position.y < buffer ||
+      this.position.y > waterHeight - buffer
+    ) {
+      // Reflect the fish's velocity
+      const angle = this.velocity.heading();
+      const reflection = createVector(cos(angle + PI), sin(angle + PI));
+      this.velocity.reflect(reflection);
+      // Adjust fish position to prevent sticking to the boundary
+      this.position.x = constrain(this.position.x, buffer, waterWidth - buffer);
+      this.position.y = constrain(this.position.y, buffer, waterHeight - buffer);
     }
-  
-    const separationForce = this.isGrouped ? createVector() : this.separate(fishes);
-    const alignmentForce = this.align(fishes);
-    const cohesionForce = this.cohesion(fishes);
-    
-    separationForce.mult(1.5);
-    alignmentForce.mult(1.0);
-    cohesionForce.mult(1.0);
-    
-    this.applyForce(separationForce);
-    this.applyForce(alignmentForce);
-    this.applyForce(cohesionForce);
-    
+
     if (this.isGrouped) {
-      this.color = lerpColor(this.color, this.groupColor, this.colorChangeFactor);
+      this.color = this.groupColor;
     } else {
-      this.color = lerpColor(this.color, this.randomColor, this.colorChangeFactor * 5);
+      this.color = this.randomColor;
     }
-  }
+    
+  } 
 
+  // Separation
+  // Method checks for nearby fishes and steers away
   separate(fishes) {
-    const desiredSeparation = FISH_SIZE * 2;
-    const sum = createVector();
+    const neighborDist = NEIGHBOR_DIST;
+    const steer = createVector();
     let count = 0;
-
+    // For every fish in the system, check if it's too close
     fishes.forEach(otherFish => {
       const distance = p5.Vector.dist(this.position, otherFish.position);
-      if (distance > 0 && distance < desiredSeparation) {
+      // If the distance is greater than 0 and less than an arbitrary amount (0 when you are yourself)
+      if (distance > 0 && distance < neighborDist) {
+        // Calculate vector pointing away from neighbor
         const difference = p5.Vector.sub(this.position, otherFish.position);
         difference.normalize();
-        difference.div(distance);
-        sum.add(difference);
-        count++;
+        difference.div(distance); // Weight by distance
+        steer.add(difference);
+        count++;  // Keep track of how many
       }
     });
-
+    // Average -- divide by how many
     if (count > 0) {
-      sum.div(count);
-      sum.normalize();
-      sum.mult(this.maxSpeed);
-      sum.sub(this.velocity);
-      sum.limit(this.maxForce);
+      steer.div(count);
+    }  
+    // As long as the vector is greater than 0
+    if (steer.mag() > 0) {
+      // Implement Reynolds: Steering = Desired - Velocity
+      steer.normalize();
+      steer.mult(this.maxspeed);
+      steer.sub(this.velocity);
+      steer.limit(this.maxforce);
     }
-
-    return sum;
+    return steer;
   }
 
+  // Alignment
+  // For every nearby boid in the system, calculate the average velocity
   align(fishes) {
-    const desiredSeparation = FISH_SIZE * 5;
-    const sum = createVector();
+    const neighborDist = NEIGHBOR_DIST*8;
+    const sum = createVector(0,0);
     let count = 0;
-
     fishes.forEach(otherFish => {
       const distance = p5.Vector.dist(this.position, otherFish.position);
-      if (distance > 0 && distance < desiredSeparation) {
+      if (distance > 0 && distance < neighborDist) {
         sum.add(otherFish.velocity);
         count++;
       }
     });
-
     if (count > 0) {
       sum.div(count);
       sum.normalize();
       sum.mult(this.maxSpeed);
-      sum.sub(this.velocity);
-      sum.limit(this.maxForce);
+      let steer = p5.Vector.sub(sum, this.velocity);
+      steer.limit(this.maxForce);
+      return steer;
+    } else {
+      return createVector(0, 0);
     }
-
-    return sum;
   }
 
+  // Cohesion
+  // For the average location (i.e. center) of all nearby fishes, calculate steering vector towards that location
   cohesion(fishes) {
-    const desiredSeparation = FISH_SIZE * 2;
-    const sum = createVector();
+    const neighborDist = NEIGHBOR_DIST*5;
+    const sum = createVector(0, 0); // Start with empty vector to accumulate all locations
     let count = 0;
-
     fishes.forEach(otherFish => {
       const distance = p5.Vector.dist(this.position, otherFish.position);
-      if (distance > 0 && distance < desiredSeparation) {
-        sum.add(otherFish.position);
+      if (distance > 0 && distance < neighborDist) {
+        sum.add(otherFish.position);  // Add location
         count++;
       }
     });
-
     if (count > 0) {
-      sum.div(count);
-      const desired = p5.Vector.sub(sum, this.position);
-      desired.normalize();
+      sum.div(count)
+      let desired = p5.Vector.sub(sum, this.position);  // A vector pointing from the location to the target 
+      desired.normalize();  // Normalize desired and scale to maximum speed
       desired.mult(this.maxSpeed);
-      const steer = p5.Vector.sub(desired, this.velocity);
-      steer.limit(this.maxForce);
+      let steer = p5.Vector.sub(desired, this.velocity); // Steering = Desired minus Velocity
+      steer.limit(this.maxForce);  // Limit to maximum steering force
       return steer;
+    } else {
+      return createVector(0, 0);
     }
-
-    return sum;
   }
 
   edges() {
@@ -331,24 +335,26 @@ class Fish {
     rotate(this.velocity.heading());
     fill(this.color);
     noStroke();
-    const FISH_SIZE = 15; // 假设鱼的尺寸为45
+    let shapeSize = 8;
   
-    // 绘制鱼身体
+    // draw fish body
     beginShape();
-    vertex(FISH_SIZE * 1.2, 0); // 前端更宽的控制点
-    bezierVertex(FISH_SIZE, -FISH_SIZE /0.6, -FISH_SIZE, -FISH_SIZE / 2, -FISH_SIZE, 0);
-    bezierVertex(-FISH_SIZE, FISH_SIZE / 2, FISH_SIZE, FISH_SIZE / 0.6, FISH_SIZE * 1.2, 0); // 前端更宽的控制点
+    vertex(shapeSize * 1.2, 0); // control fish head
+    bezierVertex(shapeSize, -shapeSize /0.6, -shapeSize, -shapeSize / 2, -shapeSize, 0);
+    bezierVertex(-shapeSize, shapeSize / 2, shapeSize, shapeSize / 0.6, shapeSize * 1.2, 0); // control fish head
     endShape(CLOSE);
   
-    // 绘制鱼尾巴
+    // fish tail
     beginShape();
-    vertex(-FISH_SIZE, 0);
-    vertex(-FISH_SIZE - FISH_SIZE / 2, -FISH_SIZE / 2);
-    vertex(-FISH_SIZE - FISH_SIZE / 2, FISH_SIZE / 2);
+    vertex(-shapeSize, 0);
+    vertex(-shapeSize - shapeSize / 2, -shapeSize / 2);
+    vertex(-shapeSize - shapeSize / 2, shapeSize / 2);
     endShape(CLOSE);
   
     pop();
   }
+
+
 }
 
 
@@ -363,20 +369,20 @@ class Obstacle {
     translate(this.position.x, this.position.y);
     noStroke();
 
-    // 渐变填充颜色
+    // gardient fill
     const gradient = drawingContext.createRadialGradient(0, 0, 0, 0, 0, this.size);
-    gradient.addColorStop(0, '#FFC0CB'); // 嫩粉色
-    gradient.addColorStop(1, '#FF69B4'); // 深粉色
+    gradient.addColorStop(0, '#FFC0CB'); // light pink
+    gradient.addColorStop(1, '#FF69B4'); // dark pink
     drawingContext.fillStyle = gradient;
 
-    // 绘制荷花花瓣
-    const petalCount = 8; // 花瓣数量
-    const angle = 360 / petalCount; // 每个花瓣之间的角度间隔
+    // draw flowers
+    const petalCount = 8; // petal quantity
+    const angle = 360 / petalCount; // angle between each petal
 
     for (let i = 0; i < petalCount; i++) {
       rotate(radians(angle * i));
 
-      // 绘制叶子
+      // draw petals
       beginShape();
       curveVertex(-this.size / 4, 0);
       curveVertex(-this.size / 4, -this.size / 4);
@@ -385,7 +391,7 @@ class Obstacle {
       curveVertex(this.size / 4, 0);
       endShape(CLOSE);
 
-      // 复制对称叶子
+      // duplicate symmetrical petals
       push();
       scale(-1, 1);
       beginShape();
